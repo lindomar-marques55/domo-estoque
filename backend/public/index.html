@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DomoEstoque - Controle de Estoque Doméstico (FIFO)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Tela de Login -->
+  <div id="login-screen">
+    <div class="login-card glass">
+      <div class="brand-icon">📦</div>
+      <h1 class="login-title">DomoEstoque</h1>
+      <p class="login-subtitle">Controle de Estoque Doméstico & FIFO</p>
+      
+      <form id="login-form">
+        <div class="form-group" style="text-align: left;">
+          <label>Usuário</label>
+          <input type="text" id="login-user" required autofocus>
+        </div>
+        <div class="form-group" style="text-align: left;">
+          <label>Senha</label>
+          <input type="password" id="login-pass" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">
+          Entrar no Sistema
+        </button>
+        <div id="login-error" style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 0.75rem; display: none;"></div>
+      </form>
+      <section id="password-change-panel" style="display: none; text-align: left;">
+        <h2 style="font-size: 1.1rem; margin: 1.25rem 0 0.5rem;">Troca obrigatória de senha</h2>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Defina uma nova senha para liberar o acesso ao sistema. Use pelo menos 12 caracteres.</p>
+        <form id="change-password-form">
+          <div class="form-group">
+            <label for="current-password">Senha inicial</label>
+            <input type="password" id="current-password" autocomplete="current-password" required>
+          </div>
+          <div class="form-group">
+            <label for="new-password">Nova senha</label>
+            <input type="password" id="new-password" autocomplete="new-password" minlength="12" required>
+          </div>
+          <div class="form-group">
+            <label for="confirm-password">Confirme a nova senha</label>
+            <input type="password" id="confirm-password" autocomplete="new-password" minlength="12" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">Alterar senha e continuar</button>
+          <div id="password-change-error" role="alert" style="color: var(--accent-danger); font-size: 0.85rem; margin-top: 0.75rem; display: none;"></div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <!-- Cabeçalho Principal -->
+  <header>
+    <div class="header-container">
+      <div class="header-top-row">
+        <div class="brand">
+          <div class="brand-icon">📦</div>
+          <div>
+            <div class="brand-title">DomoEstoque</div>
+            <span class="brand-tag">FIFO SYSTEM</span>
+          </div>
+        </div>
+
+        <div class="user-profile">
+          <span class="user-name" id="user-display-name">Administrador</span>
+          <button class="logout-btn" id="btn-logout">Sair</button>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <button class="nav-btn active" data-target="view-dashboard" id="nav-dash">
+          <span class="nav-icon">📊</span> <span class="nav-label">Painel</span>
+        </button>
+        <button class="nav-btn" data-target="view-products" id="nav-prod">
+          <span class="nav-icon">🥫</span> <span class="nav-label">Estoque</span>
+        </button>
+        <button class="nav-btn" data-target="view-projections" id="nav-proj">
+          <span class="nav-icon">📈</span> <span class="nav-label">Projeções</span>
+        </button>
+        <button class="nav-btn" data-target="view-movements" id="nav-mov">
+          <span class="nav-icon">📜</span> <span class="nav-label">Histórico</span>
+        </button>
+        <button class="nav-btn" data-target="view-corrections" id="nav-corr">
+          <span class="nav-icon">🔧</span> <span class="nav-label">Correções</span>
+        </button>
+        <button class="nav-btn" data-target="view-admin" id="nav-admin" style="display: none;">
+          <span class="nav-icon">👤</span> <span class="nav-label">Usuários</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main>
+    <!-- VIEW 1: PAINEL GERAL (DASHBOARD) -->
+    <section id="view-dashboard" class="view-section active">
+      <div class="metrics-grid">
+        <div class="metric-card glass">
+          <div class="metric-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">📦</div>
+          <div class="metric-info">
+            <h3>Total de Produtos</h3>
+            <div class="metric-value" id="dash-total-products">0</div>
+          </div>
+        </div>
+
+        <div class="metric-card glass">
+          <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">💰</div>
+          <div class="metric-info">
+            <h3>Valor em Estoque</h3>
+            <div class="metric-value" id="dash-total-value">R$ 0,00</div>
+          </div>
+        </div>
+
+        <div class="metric-card glass">
+          <div class="metric-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">⚠️</div>
+          <div class="metric-info">
+            <h3>Vencendo em 7 dias</h3>
+            <div class="metric-value" id="dash-expiring-soon">0</div>
+          </div>
+        </div>
+
+        <div class="metric-card glass">
+          <div class="metric-icon" style="background: rgba(239, 68, 68, 0.15); color: #f87171;">🚨</div>
+          <div class="metric-info">
+            <h3>Produtos Vencidos</h3>
+            <div class="metric-value" id="dash-expired-count">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Banner de Alertas Críticos -->
+      <div id="dashboard-critical-container"></div>
+
+      <!-- Tabela de resumo rápido no Dashboard -->
+      <div class="glass" style="padding: 1.25rem; margin-top: 1.5rem;">
+        <h2 style="font-size: 1.1rem; font-family: 'Outfit'; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <span>🚨 Produtos Requerendo Atenção Imediata</span>
+        </h2>
+        <div class="table-responsive">
+          <table id="table-dashboard-critical">
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Quantidade</th>
+                <th>Validade</th>
+                <th>Status / Dias</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-dashboard-critical">
+              <!-- Render dinâmico -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: GESTÃO DE ESTOQUE & PRODUTOS -->
+    <section id="view-products" class="view-section">
+      <div class="filter-bar glass">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-product" placeholder="Pesquisar produto pelo nome...">
+        </div>
+
+        <div class="filter-group">
+          <select id="filter-category">
+            <option value="">Todas as Categorias</option>
+          </select>
+          <button class="btn btn-secondary" id="btn-open-manage-categories" style="display: none;">
+            <span>🏷️</span> <span>Categorias</span>
+          </button>
+          <button class="btn btn-primary" id="btn-open-new-product">
+            <span>➕</span> <span>Novo Produto</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="product-grid" id="product-grid">
+        <!-- Render dinâmico de cards de produtos -->
+      </div>
+    </section>
+
+    <!-- VIEW 3: PROJEÇÕES DE USO & REPOSIÇÃO -->
+    <section id="view-projections" class="view-section">
+      <div class="glass" style="padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <h2 style="font-family: 'Outfit'; font-size: 1.25rem;">📊 Projeção de Consumo e Preço Médio do Estoque</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">Calculado com base no consumo médio diário para suprir o período selecionado</p>
+          </div>
+          <div>
+            <select id="projection-period-select" style="padding: 0.5rem 1rem; font-weight: 600;">
+              <option value="15">Período Alvo: 15 dias</option>
+              <option value="30" selected>Período Alvo: 30 dias</option>
+              <option value="60">Período Alvo: 60 dias</option>
+              <option value="120">Período Alvo: 120 dias</option>
+              <option value="240">Período Alvo: 240 dias</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Estoque Atual</th>
+                <th>Preço Médio / Un.</th>
+                <th>Consumo Médio/Dia</th>
+                <th>Estoque Necessário</th>
+                <th>Período Alvo</th>
+                <th>Precisa Adicionar / Comprar</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-projections">
+              <!-- Render dinâmico -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: HISTÓRICO DE MOVIMENTAÇÕES -->
+    <section id="view-movements" class="view-section">
+      <div class="glass" style="padding: 1.25rem;">
+        <h2 style="font-family: 'Outfit'; font-size: 1.25rem; margin-bottom: 1rem;">📜 Histórico de Movimentações (Entradas, Consumo & Descartes)</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Data / Hora</th>
+                <th>Produto</th>
+                <th>Tipo</th>
+                <th>Quantidade</th>
+                <th>Preço Un.</th>
+                <th>Observações / Lote</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-movements">
+              <!-- Render dinâmico -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: CORREÇÕES E AJUSTES DE BANCO DE DADOS -->
+    <section id="view-corrections" class="view-section">
+      <div class="glass" style="padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <h2 style="font-family: 'Outfit'; font-size: 1.25rem;">🔧 Correções & Ajustes de Inventário</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">Histórico de correções diretas no banco (erros de digitação). Não afeta o histórico de consumo.</p>
+          </div>
+          <button class="btn btn-warning" id="btn-open-adjustment-modal">
+            <span>🔧</span> <span>Corrigir Lote / Registro</span>
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Data / Hora</th>
+                <th>Usuário</th>
+                <th>Produto</th>
+                <th>Lote #</th>
+                <th>Campo Corrigido</th>
+                <th>De (Anterior)</th>
+                <th>Para (Novo)</th>
+                <th>Motivo da Correção</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-corrections">
+              <!-- Render dinâmico -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 6: GESTÃO DE USUÁRIOS E PERMISSÕES (ADMIN) -->
+    <section id="view-admin" class="view-section">
+      <div class="glass" style="padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+          <div>
+            <h2 style="font-family: 'Outfit'; font-size: 1.25rem;">👤 Gestão de Usuários & Permissões</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem;">Crie novos usuários comuns e controle exatamente o que cada um pode visualizar, criar e modificar.</p>
+          </div>
+          <button class="btn btn-primary" id="btn-open-new-user">
+            <span>➕</span> <span>Novo Usuário</span>
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Nome</th>
+                <th>Perfil (Role)</th>
+                <th>Status</th>
+                <th>Permissões Concedidas</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-users">
+              <!-- Render dinâmico -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: NOVO PRODUTO -->
+  <div class="modal-overlay" id="modal-product">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-product-title">Cadastrar Novo Produto</h3>
+        <button class="close-btn" onclick="closeModal('modal-product')">&times;</button>
+      </div>
+      <form id="form-product">
+        <input type="hidden" id="product-id">
+        <div class="form-group">
+          <label>Nome do Produto</label>
+          <input type="text" id="product-name" placeholder="Ex: Arroz Tio João, Leite Ninho, Detergente..." required>
+        </div>
+        <div class="form-group">
+          <label style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Categoria</span>
+            <button type="button" class="btn btn-secondary" id="btn-open-new-category" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; display: none;" onclick="openCategoryModal()">➕ Nova Categoria</button>
+          </label>
+          <select id="product-category" required></select>
+        </div>
+        <div class="form-group">
+          <label>Unidade de Medida</label>
+          <select id="product-unit" required>
+            <option value="kg">Quilograma (kg)</option>
+            <option value="g">Grama (g)</option>
+            <option value="L">Litro (L)</option>
+            <option value="ml">Mililitro (ml)</option>
+            <option value="unidade" selected>Unidade (un)</option>
+            <option value="caixa">Caixa (cx)</option>
+            <option value="pacote">Pacote (pct)</option>
+            <option value="lata">Lata</option>
+            <option value="garrafa">Garrafa</option>
+          </select>
+        </div>
+        <div class="form-group" id="group-prod-initial-qty">
+          <label>Quantidade Adicionada ao Estoque</label>
+          <input type="number" step="0.01" id="product-initial-qty" placeholder="Ex: 5 (para 5 kg ou 5 unidades)" value="1" required>
+        </div>
+        <div class="form-group" id="group-prod-unit-price">
+          <label>Preço Total da Embalagem (R$) <span style="color: var(--text-muted); font-weight: 400; text-transform: none;">(preço por unidade calculado automaticamente)</span></label>
+          <input type="number" step="0.01" id="product-unit-price" placeholder="Ex: 20.00 para um pacote de 5kg = R$4,00/kg" value="0.00" required>
+        </div>
+        <div class="form-group" id="group-prod-exp-date">
+          <label>Data de Validade (Opcional)</label>
+          <input type="date" id="product-exp-date">
+        </div>
+        <div class="form-group" id="group-prod-notes">
+          <label>Marca / Observações (Opcional)</label>
+          <input type="text" id="product-brand-notes" placeholder="Ex: Marca Tio João, Mercado X">
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-product')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GERENCIAR CATEGORIAS -->
+  <div class="modal-overlay" id="modal-manage-categories">
+    <div class="modal-content" style="max-width: 550px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🏷️ Gerenciar Categorias</h3>
+        <button class="close-btn" onclick="closeModal('modal-manage-categories')">&times;</button>
+      </div>
+
+      <form id="form-manage-category" style="background: rgba(15,23,42,0.6); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
+        <input type="hidden" id="manage-cat-id">
+        <h4 id="manage-cat-title" style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--accent-primary);">➕ Adicionar Nova Categoria</h4>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <input type="text" id="manage-cat-name" placeholder="Nome da Categoria (ex: Congelados)" required style="flex: 1; min-width: 180px;">
+          <input type="color" id="manage-cat-color" value="#3b82f6" style="height: 38px; width: 50px; padding: 2px; cursor: pointer;">
+          <button type="submit" class="btn btn-primary" id="btn-save-manage-cat">Salvar</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-manage-cat" style="display: none;" onclick="resetManageCategoryForm()">Cancelar</button>
+        </div>
+      </form>
+
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Etiqueta</th>
+              <th>Nome da Categoria</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-categories-list">
+            <!-- Render dinâmico de categorias -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NOVA CATEGORIA (CRIAÇÃO RÁPIDA DENTRO DO PRODUTO) -->
+  <div class="modal-overlay" id="modal-category" style="z-index: 1050;">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">➕ Criar Nova Categoria</h3>
+        <button class="close-btn" onclick="closeModal('modal-category')">&times;</button>
+      </div>
+      <form id="form-category">
+        <div class="form-group">
+          <label>Nome da Categoria</label>
+          <input type="text" id="cat-name-input" placeholder="Ex: Congelados, Padaria, Molhos..." required>
+        </div>
+        <div class="form-group">
+          <label>Cor da Etiqueta</label>
+          <input type="color" id="cat-color-input" value="#3b82f6" style="height: 40px; padding: 2px; cursor: pointer; width: 100%;">
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-category')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Criar Categoria</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADICIONAR LOTE (COMPRA) -->
+  <div class="modal-overlay" id="modal-batch">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Nova Entrada de Lote (Compra)</h3>
+        <button class="close-btn" onclick="closeModal('modal-batch')">&times;</button>
+      </div>
+      <form id="form-batch">
+        <input type="hidden" id="batch-product-id">
+        <div class="form-group">
+          <label>Produto</label>
+          <input type="text" id="batch-product-name" readonly style="background: rgba(255,255,255,0.05); font-weight: 700;">
+        </div>
+        <div class="form-group">
+          <label>Quantidade Adicionada</label>
+          <input type="number" step="0.01" id="batch-quantity" placeholder="Ex: 5 (para 5 kg ou 5 unidades)" required>
+        </div>
+        <div class="form-group">
+          <label>Preço Total da Embalagem (R$) <span style="color: var(--text-muted); font-weight: 400; text-transform: none;">(preço por unidade calculado automaticamente)</span></label>
+          <input type="number" step="0.01" id="batch-price" placeholder="Ex: 20.00 para pacote de 5kg = R$4,00/kg" required>
+        </div>
+        <div class="form-group">
+          <label>Data da Compra / Entrada</label>
+          <input type="date" id="batch-entry-date" required>
+        </div>
+        <div class="form-group">
+          <label>Data de Validade (Opcional)</label>
+          <input type="date" id="batch-expiration-date">
+        </div>
+        <div class="form-group">
+          <label>Marca / Observações</label>
+          <input type="text" id="batch-notes" placeholder="Ex: Marca Tio João, Mercado X...">
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-batch')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Adicionar Lote</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DAR BAIXA FIFO (CONSUMO DOMÉSTICO) -->
+  <div class="modal-overlay" id="modal-fifo">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Dar Baixa no Estoque (FIFO)</h3>
+        <button class="close-btn" onclick="closeModal('modal-fifo')">&times;</button>
+      </div>
+      <form id="form-fifo">
+        <input type="hidden" id="fifo-product-id">
+        <div class="form-group">
+          <label>Produto</label>
+          <input type="text" id="fifo-product-name" readonly style="background: rgba(255,255,255,0.05); font-weight: 700;">
+        </div>
+        <div class="form-group">
+          <label>Quantidade a Retirar (<span id="fifo-unit-label">kg</span>)</label>
+          <input type="number" step="0.01" id="fifo-quantity" placeholder="Ex: 1 (para retirar 1 kg)" required>
+        </div>
+        <input type="hidden" id="fifo-type" value="out_consumption">
+
+        <!-- Prévia do Abate FIFO -->
+        <div class="fifo-preview-box" id="fifo-preview-container" style="display: none;">
+          <div class="fifo-preview-title">🔍 Prévia do Abate Automático (FIFO):</div>
+          <div id="fifo-preview-list"></div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-fifo')">Cancelar</button>
+          <button type="submit" class="btn btn-warning" id="btn-confirm-fifo">Confirmar Baixa FIFO</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DESCARTE DE VENCIDOS (SEM CARACTERIZAR CONSUMO) -->
+  <div class="modal-overlay" id="modal-discard">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">🗑️ Descartar Lote Vencido</h3>
+        <button class="close-btn" onclick="closeModal('modal-discard')">&times;</button>
+      </div>
+      <form id="form-discard">
+        <input type="hidden" id="discard-product-id">
+        <div class="form-group">
+          <label>Produto</label>
+          <input type="text" id="discard-product-name" readonly style="background: rgba(255,255,255,0.05); font-weight: 700;">
+        </div>
+        <div class="form-group">
+          <label>Selecione o Lote a Descartar</label>
+          <select id="discard-batch-id" required></select>
+        </div>
+        <div class="form-group">
+          <label>Quantidade a Descartar</label>
+          <input type="number" step="0.01" id="discard-quantity" placeholder="Quantidade do lote a descarte" required>
+        </div>
+        <div class="form-group">
+          <label>Motivo do Descarte</label>
+          <input type="text" id="discard-reason" value="Validade vencida" placeholder="Ex: Validade vencida, produto estragado, embalagem danificada" required>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-discard')">Cancelar</button>
+          <button type="submit" class="btn btn-danger">Confirmar Descarte</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CORREÇÃO / AJUSTE DE INVENTÁRIO (SEM AFETAR CONSUMO) -->
+  <div class="modal-overlay" id="modal-adjustment">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">🔧 Corrigir Registro / Lote</h3>
+        <button class="close-btn" onclick="closeModal('modal-adjustment')">&times;</button>
+      </div>
+      <form id="form-adjustment">
+        <div class="form-group">
+          <label>Selecione o Produto</label>
+          <select id="adj-product-id" required></select>
+        </div>
+        <div class="form-group">
+          <label>Selecione o Lote</label>
+          <select id="adj-batch-id" required></select>
+        </div>
+        <div class="form-group">
+          <label>Campo a Corrigir</label>
+          <select id="adj-field" required>
+            <option value="current_quantity">Quantidade Atual no Estoque</option>
+            <option value="unit_price">Preço Unitário (R$)</option>
+            <option value="expiration_date">Data de Validade</option>
+            <option value="brand_notes">Marca / Observações</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Novo Valor</label>
+          <input type="text" id="adj-new-value" placeholder="Digite o valor correto" required>
+        </div>
+        <div class="form-group">
+          <label>Motivo da Correção (Obrigatório)</label>
+          <input type="text" id="adj-reason" placeholder="Ex: Erro de digitação no cadastro, inventário físico..." required>
+        </div>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-adjustment')">Cancelar</button>
+          <button type="submit" class="btn btn-warning">Salvar Correção</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GESTÃO DE USUÁRIO (CRIAR / EDITAR PERMISSÕES) -->
+  <div class="modal-overlay" id="modal-user">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-user-title">Novo Usuário do Sistema</h3>
+        <button class="close-btn" onclick="closeModal('modal-user')">&times;</button>
+      </div>
+      <form id="form-user">
+        <input type="hidden" id="user-id">
+        <div class="form-group">
+          <label>Nome Completo</label>
+          <input type="text" id="user-name-input" placeholder="Ex: Maria Silva" required>
+        </div>
+        <div class="form-group">
+          <label>Usuário (Login)</label>
+          <input type="text" id="user-username-input" placeholder="Ex: mariasilva" required>
+        </div>
+        <div class="form-group">
+          <label id="user-pass-label">Senha (mínimo 6 caracteres)</label>
+          <input type="password" id="user-pass-input" placeholder="••••••••" required>
+        </div>
+
+        <div class="form-group" style="margin-top: 1.25rem;">
+          <label style="color: var(--accent-primary); font-weight: 700;">Permissões de Acesso do Usuário Comum:</label>
+          <div class="permissions-grid">
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-view-dash" checked> 📊 Ver Painel
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-view-prod" checked> 🥫 Ver Estoque
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-add-prod"> ➕ Criar Produtos
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-edit-prod"> ✏️ Editar Produtos
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-del-prod"> 🗑️ Excluir Produtos
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-add-batch" checked> 📦 Adicionar Lotes
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-consume-stock" checked> ⚡ Baixa FIFO (Consumo)
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-discard-stock"> 🗑️ Descartar Vencidos
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-view-proj" checked> 📈 Ver Projeções
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-view-mov" checked> 📜 Ver Histórico
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-view-corr"> 🔧 Ver Correções
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-make-corr"> ✏️ Fazer Correções
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="perm-manage-categories"> 🏷️ Gerenciar Categorias
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-user')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Usuário</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DETALHES DE LOTES DE UM PRODUTO -->
+  <div class="modal-overlay" id="modal-batches-detail">
+    <div class="modal-content" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="batches-detail-title">Lotes do Produto</h3>
+        <button class="close-btn" onclick="closeModal('modal-batches-detail')">&times;</button>
+      </div>
+      <div class="table-responsive" style="margin-bottom: 1rem;">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Entrada</th>
+              <th>Validade</th>
+              <th>Inicial</th>
+              <th>Atual</th>
+              <th>Preço Un.</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-batches-detail">
+            <!-- Render dinâmico -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
